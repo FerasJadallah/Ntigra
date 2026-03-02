@@ -1,0 +1,16 @@
+## .NET Core
+bin/
+obj/
+*.user
+*.secrets
+
+## VS Code
+.vscode/
+
+## Environment
+appsettings.Development.json
+appsettings.Production.json
+.env
+
+## OS files
+.DS_Store
