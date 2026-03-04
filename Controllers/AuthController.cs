@@ -11,43 +11,43 @@ namespace Ntigra.Controllers;
 public class AuthController : ControllerBase
 {
     private readonly IAuthService _authService;
-    private readonly AppDbContext _context;  // 👈 Added
+    private readonly AppDbContext _context;
 
-    public AuthController(IAuthService authService, AppDbContext context)  // 👈 Added context
+    public AuthController(IAuthService authService, AppDbContext context)
     {
         _authService = authService;
-        _context = context;  // 👈 Initialize
+        _context = context;
     }
 
-[HttpPost("register")]
-public async Task<IActionResult> Register(RegisterRequest request)
-{
-    if (!ModelState.IsValid)
-        return BadRequest(ModelState);
+    [HttpPost("register")]
+    public async Task<IActionResult> Register(RegisterRequest request)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
 
-    var result = await _authService.RegisterAsync(request);
+        var result = await _authService.RegisterAsync(request);
 
-    if (result == null)
-        return Conflict(new { message = "Email already registered or database error" });
+        if (result == null)
+            return Conflict(new { message = "Email already registered" });
 
-    return Ok(result);
-}
+        return Ok(result);
+    }
 
-[HttpPost("login")]
-public async Task<IActionResult> Login(LoginRequest request)
-{
-    if (!ModelState.IsValid)
-        return BadRequest(ModelState);
+    [HttpPost("login")]
+    public async Task<IActionResult> Login(LoginRequest request)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
 
-    var result = await _authService.LoginAsync(request);
+        var result = await _authService.LoginAsync(request);
 
-    if (result == null)
-        return Unauthorized(new { message = "Invalid email or password" });
+        if (result == null)
+            return Unauthorized(new { message = "Invalid email or password" });
 
-    return Ok(result);
-}
+        return Ok(result);
+    }
 
-    [HttpGet("test-roles")]
+    [HttpGet("test-roles")] // This endpoint is for testing purposes to verify that user roles are being stored correctly in the database.
     public async Task<IActionResult> TestRoles()
     {
         var users = await _context.Users
