@@ -2,8 +2,6 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Ntigra.Models;
 
-// This class represents a user in the system, with properties for email, password hash, and creation date.
-
 public class User
 {
     [Key]
@@ -15,9 +13,9 @@ public class User
     
     [Required]
     public string PasswordHash { get; set; } = string.Empty;
-
+    
     [Required]
-    public string Role { get; set; } = "Patient"; // Default role is "Patient"
+    public string Role { get; set; } = string.Empty;  // No default!
     
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }

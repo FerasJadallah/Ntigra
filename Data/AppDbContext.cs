@@ -3,8 +3,6 @@ using Ntigra.Models;
 
 namespace Ntigra.Data;
 
-// This class represents the database context for the application, allowing us to interact with the database using Entity Framework Core.
-
 public class AppDbContext : DbContext
 {
     public AppDbContext(DbContextOptions<AppDbContext> options)
@@ -13,4 +11,15 @@ public class AppDbContext : DbContext
     }
     
     public DbSet<User> Users { get; set; }
+    public DbSet<Patient> Patients { get; set; }
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        base.OnModelCreating(modelBuilder);
+
+        modelBuilder.Entity<User>()
+            .HasDiscriminator<string>("Discriminator")
+            .HasValue<User>("User")
+            .HasValue<Patient>("Patient");
+    }
 }
