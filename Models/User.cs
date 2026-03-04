@@ -14,5 +14,8 @@ public class User
     [Required]
     public string PasswordHash { get; set; } = string.Empty;
     
+    [Required]
+    public string Role { get; set; } = "Patient";  // 👈 NEW - default role
+    
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }

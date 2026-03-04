@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Ntigra.Data;
 using Ntigra.DTOs;
-using Ntigra.Models;
+using Ntigra.Services;
 
 namespace Ntigra.Controllers;
 
@@ -10,41 +10,56 @@ namespace Ntigra.Controllers;
 [ApiController]
 public class AuthController : ControllerBase
 {
-    private readonly AppDbContext _context;
+    private readonly IAuthService _authService;
+    private readonly AppDbContext _context;  // 👈 Added
 
-    public AuthController(AppDbContext context)
+    public AuthController(IAuthService authService, AppDbContext context)  // 👈 Added context
     {
-        _context = context;
+        _authService = authService;
+        _context = context;  // 👈 Initialize
     }
 
-    [HttpPost("register")]
-    public async Task<IActionResult> Register(RegisterRequest request)
+[HttpPost("register")]
+public async Task<IActionResult> Register(RegisterRequest request)
+{
+    if (!ModelState.IsValid)
+        return BadRequest(ModelState);
+
+    var result = await _authService.RegisterAsync(request);
+
+    if (result == null)
+        return Conflict(new { message = "Email already registered or database error" });
+
+    return Ok(result);
+}
+
+[HttpPost("login")]
+public async Task<IActionResult> Login(LoginRequest request)
+{
+    if (!ModelState.IsValid)
+        return BadRequest(ModelState);
+
+    var result = await _authService.LoginAsync(request);
+
+    if (result == null)
+        return Unauthorized(new { message = "Invalid email or password" });
+
+    return Ok(result);
+}
+
+    [HttpGet("test-roles")]
+    public async Task<IActionResult> TestRoles()
     {
-        if (!ModelState.IsValid)
-            return BadRequest(ModelState);
+        var users = await _context.Users
+            .Select(u => new
+            {
+                u.Id,
+                u.Email,
+                u.Role,
+                u.CreatedAt
+            })
+            .ToListAsync();
 
-        var existingUser = await _context.Users
-            .FirstOrDefaultAsync(u => u.Email == request.Email);
-        
-        if (existingUser != null)
-            return Conflict(new { message = "Email already registered" });
-
-        string passwordHash = BCrypt.Net.BCrypt.HashPassword(request.Password);
-
-        var user = new User
-        {
-            Email = request.Email,
-            PasswordHash = passwordHash
-        };
-
-        _context.Users.Add(user);
-        await _context.SaveChangesAsync();
-
-        return Ok(new 
-        { 
-            message = "User registered successfully",
-            userId = user.Id,
-            email = user.Email
-        });
+        return Ok(users);
     }
 }
