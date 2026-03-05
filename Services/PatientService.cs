@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Ntigra.Data;
 using Ntigra.DTOs;
@@ -8,11 +9,16 @@ namespace Ntigra.Services;
 public class PatientService : IPatientService
 {
     private readonly AppDbContext _context;
+    private readonly IAuditService _auditService;
     private readonly ILogger<PatientService> _logger;
 
-    public PatientService(AppDbContext context, ILogger<PatientService> logger)
+    public PatientService(
+        AppDbContext context,
+        IAuditService auditService,
+        ILogger<PatientService> logger)
     {
         _context = context;
+        _auditService = auditService;
         _logger = logger;
     }
 
@@ -20,6 +26,8 @@ public class PatientService : IPatientService
     {
         try
         {
+            await using var transaction = await _context.Database.BeginTransactionAsync();
+
             // Check if email exists
             var existingUser = await _context.Users
                 .FirstOrDefaultAsync(u => u.Email == request.Email);
@@ -50,6 +58,20 @@ public class PatientService : IPatientService
             _context.Patients.Add(patient);
             await _context.SaveChangesAsync();
 
+            _auditService.AddAuditLog(
+                action: "CREATE",
+                entityType: "Patient",
+                entityId: patient.Id,
+                details: JsonSerializer.Serialize(new
+                {
+                    patient.Id,
+                    patient.Email,
+                    patient.FirstName,
+                    patient.LastName
+                }));
+            await _context.SaveChangesAsync();
+            await transaction.CommitAsync();
+
             _logger.LogInformation("Patient created: {Email}, Id: {Id}", patient.Email, patient.Id);
 
             return new PatientResponse
@@ -79,6 +101,12 @@ public class PatientService : IPatientService
             if (patient == null)
                 return null;
 
+            _auditService.AddAuditLog(
+                action: "READ",
+                entityType: "Patient",
+                entityId: patient.Id);
+            await _context.SaveChangesAsync();
+
             return new PatientResponse
             {
                 Id = patient.Id,
@@ -102,7 +130,7 @@ public class PatientService : IPatientService
     {
         try
         {
-            return await _context.Patients
+            var patients = await _context.Patients
                 .Select(p => new PatientResponse
                 {
                     Id = p.Id,
@@ -115,6 +143,15 @@ public class PatientService : IPatientService
                     CreatedAt = p.CreatedAt
                 })
                 .ToListAsync();
+
+            _auditService.AddAuditLog(
+                action: "READ_ALL",
+                entityType: "Patient",
+                entityId: 0,
+                details: JsonSerializer.Serialize(new { Count = patients.Count }));
+            await _context.SaveChangesAsync();
+
+            return patients;
         }
         catch (Exception ex)
         {
@@ -131,6 +168,16 @@ public class PatientService : IPatientService
             if (patient == null)
                 return null;
 
+            var before = new
+            {
+                patient.FirstName,
+                patient.LastName,
+                patient.DateOfBirth,
+                patient.Phone,
+                patient.Email,
+                patient.Address
+            };
+
             patient.FirstName = request.FirstName;
             patient.LastName = request.LastName;
             patient.DateOfBirth = request.DateOfBirth;
@@ -138,6 +185,23 @@ public class PatientService : IPatientService
             patient.Email = request.Email;
             patient.Address = request.Address;
 
+            _auditService.AddAuditLog(
+                action: "UPDATE",
+                entityType: "Patient",
+                entityId: patient.Id,
+                details: JsonSerializer.Serialize(new
+                {
+                    Before = before,
+                    After = new
+                    {
+                        patient.FirstName,
+                        patient.LastName,
+                        patient.DateOfBirth,
+                        patient.Phone,
+                        patient.Email,
+                        patient.Address
+                    }
+                }));
             await _context.SaveChangesAsync();
 
             _logger.LogInformation("Patient updated: {PatientId}", id);
@@ -169,6 +233,17 @@ public class PatientService : IPatientService
             if (patient == null)
                 return false;
 
+            _auditService.AddAuditLog(
+                action: "DELETE",
+                entityType: "Patient",
+                entityId: patient.Id,
+                details: JsonSerializer.Serialize(new
+                {
+                    patient.Id,
+                    patient.Email,
+                    patient.FirstName,
+                    patient.LastName
+                }));
             _context.Patients.Remove(patient);
             await _context.SaveChangesAsync();
 
@@ -181,4 +256,5 @@ public class PatientService : IPatientService
             return false;
         }
     }
+
 }
