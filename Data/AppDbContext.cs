@@ -12,6 +12,7 @@ public class AppDbContext : DbContext
     
     public DbSet<User> Users { get; set; }
     public DbSet<Patient> Patients { get; set; }
+    public DbSet<Receptionist> Receptionists { get; set; }
     public DbSet<AuditLog> AuditLogs { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -21,7 +22,8 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<User>()
             .HasDiscriminator<string>("Discriminator")
             .HasValue<User>("User")
-            .HasValue<Patient>("Patient");
+            .HasValue<Patient>("Patient")
+            .HasValue<Receptionist>("Receptionist");
 
         modelBuilder.Entity<AuditLog>()
             .HasOne(a => a.User)
