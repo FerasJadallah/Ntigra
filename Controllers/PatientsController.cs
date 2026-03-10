@@ -54,20 +54,20 @@ public class PatientsController : ControllerBase
         return Ok(result);
     }
 
-    [HttpPut("{id}")]
-    [Authorize(Roles = "Receptionist")]
-    public async Task<IActionResult> UpdatePatient(int id, CreatePatientRequest request)
-    {
-        if (!ModelState.IsValid)
-            return BadRequest(ModelState);
+[HttpPut("{id}")]
+[Authorize(Roles = "Receptionist,Admin")]  
+public async Task<IActionResult> UpdatePatient(int id, UpdatePatientRequest request)  
+{
+    if (!ModelState.IsValid)
+        return BadRequest(ModelState);
 
-        var result = await _patientService.UpdatePatientAsync(id, request);
+    var result = await _patientService.UpdatePatientAsync(id, request);
 
-        if (result == null)
-            return NotFound(new { message = "Patient not found" });
+    if (result == null)
+        return NotFound(new { message = "Patient not found" });
 
-        return Ok(result);
-    }
+    return Ok(result);
+}
 
     [HttpDelete("{id}")]
     [Authorize(Roles = "Receptionist")]

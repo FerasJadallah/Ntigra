@@ -160,70 +160,72 @@ public class PatientService : IPatientService
         }
     }
 
-    public async Task<PatientResponse?> UpdatePatientAsync(int id, CreatePatientRequest request)
+public async Task<PatientResponse?> UpdatePatientAsync(int id, UpdatePatientRequest request)
+{
+    try
     {
-        try
-        {
-            var patient = await _context.Patients.FindAsync(id);
-            if (patient == null)
-                return null;
-
-            var before = new
-            {
-                patient.FirstName,
-                patient.LastName,
-                patient.DateOfBirth,
-                patient.Phone,
-                patient.Email,
-                patient.Address
-            };
-
-            patient.FirstName = request.FirstName;
-            patient.LastName = request.LastName;
-            patient.DateOfBirth = request.DateOfBirth;
-            patient.Phone = request.Phone;
-            patient.Email = request.Email;
-            patient.Address = request.Address;
-
-            _auditService.AddAuditLog(
-                action: "UPDATE",
-                entityType: "Patient",
-                entityId: patient.Id,
-                details: JsonSerializer.Serialize(new
-                {
-                    Before = before,
-                    After = new
-                    {
-                        patient.FirstName,
-                        patient.LastName,
-                        patient.DateOfBirth,
-                        patient.Phone,
-                        patient.Email,
-                        patient.Address
-                    }
-                }));
-            await _context.SaveChangesAsync();
-
-            _logger.LogInformation("Patient updated: {PatientId}", id);
-
-            return new PatientResponse
-            {
-                Id = patient.Id,
-                FirstName = patient.FirstName,
-                LastName = patient.LastName,
-                DateOfBirth = patient.DateOfBirth,
-                Phone = patient.Phone,
-                Email = patient.Email,
-                Address = patient.Address,
-                CreatedAt = patient.CreatedAt
-            };
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error updating patient: {Id}", id);
+        var patient = await _context.Patients.FindAsync(id);
+        if (patient == null)
             return null;
-        }
+
+        var before = new
+        {
+            patient.FirstName,
+            patient.LastName,
+            patient.DateOfBirth,
+            patient.Phone,
+            patient.Email,
+            patient.Address
+        };
+
+        // Update only the fields that should be updatable
+        patient.FirstName = request.FirstName;
+        patient.LastName = request.LastName;
+        patient.DateOfBirth = request.DateOfBirth;
+        patient.Phone = request.Phone;
+        patient.Email = request.Email;  // Email is now updatable
+        patient.Address = request.Address;
+        // Note: Password is NOT updated here - should be separate endpoint
+
+        _auditService.AddAuditLog(
+            action: "UPDATE",
+            entityType: "Patient",
+            entityId: patient.Id,
+            details: JsonSerializer.Serialize(new
+            {
+                Before = before,
+                After = new
+                {
+                    patient.FirstName,
+                    patient.LastName,
+                    patient.DateOfBirth,
+                    patient.Phone,
+                    patient.Email,
+                    patient.Address
+                }
+            }));
+        await _context.SaveChangesAsync();
+
+        _logger.LogInformation("Patient updated: {PatientId}", id);
+
+        return new PatientResponse
+        {
+            Id = patient.Id,
+            FirstName = patient.FirstName,
+            LastName = patient.LastName,
+            DateOfBirth = patient.DateOfBirth,
+            Phone = patient.Phone,
+            Email = patient.Email,
+            Address = patient.Address,
+            CreatedAt = patient.CreatedAt
+        };
     }
+    catch (Exception ex)
+    {
+        _logger.LogError(ex, "Error updating patient: {Id}", id);
+        return null;
+    }
+}
 
     public async Task<bool> DeletePatientAsync(int id)
     {
