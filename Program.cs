@@ -4,6 +4,7 @@ using Ntigra.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -61,6 +62,10 @@ builder.Services.AddSwaggerGen(c =>
         }
     });
 });
+
+    builder.Services.AddSingleton<IConnectionMultiplexer>(sp => 
+        ConnectionMultiplexer.Connect("localhost:6379"));
+    builder.Services.AddSingleton<ICacheService, RedisCacheService>();
 
 var app = builder.Build();
 

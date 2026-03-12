@@ -20,7 +20,7 @@ public class PatientsController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = "Receptionist")]
+    [Authorize(Roles = "Receptionist,Admin")]
     public async Task<IActionResult> CreatePatient(CreatePatientRequest request)
     {
         if (!ModelState.IsValid)
@@ -35,7 +35,7 @@ public class PatientsController : ControllerBase
     }
 
     [HttpGet("{id}")]
-    [Authorize(Roles = "Receptionist,Patient")]
+    [Authorize(Roles = "Receptionist,Patient,Admin")]
     public async Task<IActionResult> GetPatientById(int id)
     {
         var result = await _patientService.GetPatientByIdAsync(id);
@@ -47,7 +47,7 @@ public class PatientsController : ControllerBase
     }
 
     [HttpGet]
-    [Authorize(Roles = "Receptionist")]
+    [Authorize(Roles = "Receptionist,Admin")]
     public async Task<IActionResult> GetAllPatients()
     {
         var result = await _patientService.GetAllPatientsAsync();
@@ -70,7 +70,7 @@ public async Task<IActionResult> UpdatePatient(int id, UpdatePatientRequest requ
 }
 
     [HttpDelete("{id}")]
-    [Authorize(Roles = "Receptionist")]
+    [Authorize(Roles = "Receptionist,Admin")]
     public async Task<IActionResult> DeletePatient(int id)
     {
         var result = await _patientService.DeletePatientAsync(id);
