@@ -75,6 +75,9 @@ public class PatientService : IPatientService
             await _context.SaveChangesAsync();
             await transaction.CommitAsync();
 
+            // Invalidate cache for all patients since list changed
+            await _cache.RemoveAsync("patients:all");
+
             _logger.LogInformation("Patient created: {Email}, Id: {Id}", patient.Email, patient.Id);
 
             return new PatientResponse
@@ -98,7 +101,7 @@ public class PatientService : IPatientService
 
     public async Task<PatientResponse?> GetPatientByIdAsync(int id)
     {
-        try
+        try 
         {
             // Try cache first
             var cacheKey = $"patient:{id}";
@@ -151,7 +154,7 @@ public class PatientService : IPatientService
             // Try cache first
             var cacheKey = "patients:all";
             var cached = await _cache.GetAsync<List<PatientResponse>>(cacheKey);
-
+            
             if (cached != null)
             {
                 _logger.LogInformation("✅ CACHE HIT for all patients");
@@ -159,7 +162,7 @@ public class PatientService : IPatientService
             }
 
             _logger.LogInformation("❌ CACHE MISS for all patients, fetching from database");
-
+            
             var patients = await _context.Patients
                 .Select(p => new PatientResponse
                 {
@@ -193,76 +196,75 @@ public class PatientService : IPatientService
         }
     }
 
-public async Task<PatientResponse?> UpdatePatientAsync(int id, UpdatePatientRequest request)
-{
-    try
+    public async Task<PatientResponse?> UpdatePatientAsync(int id, UpdatePatientRequest request)
     {
-        var patient = await _context.Patients.FindAsync(id);
-        if (patient == null)
-            return null;
-
-        var before = new
+        try
         {
-            patient.FirstName,
-            patient.LastName,
-            patient.DateOfBirth,
-            patient.Phone,
-            patient.Email,
-            patient.Address
-        };
+            var patient = await _context.Patients.FindAsync(id);
+            if (patient == null)
+                return null;
 
-        // Update only the fields that should be updatable
-        patient.FirstName = request.FirstName;
-        patient.LastName = request.LastName;
-        patient.DateOfBirth = request.DateOfBirth;
-        patient.Phone = request.Phone;
-        patient.Email = request.Email;  // Email is now updatable
-        patient.Address = request.Address;
-        // Note: Password is NOT updated here - should be separate endpoint
+            var before = new
+            {
+                patient.FirstName,
+                patient.LastName,
+                patient.DateOfBirth,
+                patient.Phone,
+                patient.Email,
+                patient.Address
+            };
+
+            // Update only the fields that should be updatable
+            patient.FirstName = request.FirstName;
+            patient.LastName = request.LastName;
+            patient.DateOfBirth = request.DateOfBirth;
+            patient.Phone = request.Phone;
+            patient.Email = request.Email;
+            patient.Address = request.Address;
 
             _auditService.AddAuditLog(
                 action: "UPDATE",
                 entityType: "Patient",
                 entityId: patient.Id,
-            details: JsonSerializer.Serialize(new
-            {
-                Before = before,
-                After = new
+                details: JsonSerializer.Serialize(new
                 {
-                    patient.FirstName,
-                    patient.LastName,
-                    patient.DateOfBirth,
-                    patient.Phone,
-                    patient.Email,
-                    patient.Address
+                    Before = before,
+                    After = new
+                    {
+                        patient.FirstName,
+                        patient.LastName,
+                        patient.DateOfBirth,
+                        patient.Phone,
+                        patient.Email,
+                        patient.Address
                     }
                 }));
             await _context.SaveChangesAsync();
 
-            // Invalidate cache
+            // 👇 INVALIDATE CACHE - remove old data
             await _cache.RemoveAsync($"patient:{id}");
             await _cache.RemoveAsync("patients:all");
 
-            _logger.LogInformation("Patient updated: {PatientId}", id);
+            _logger.LogInformation("Patient updated and cache invalidated: {PatientId}", id);
 
             return new PatientResponse
             {
                 Id = patient.Id,
-            FirstName = patient.FirstName,
-            LastName = patient.LastName,
-            DateOfBirth = patient.DateOfBirth,
-            Phone = patient.Phone,
-            Email = patient.Email,
-            Address = patient.Address,
-            CreatedAt = patient.CreatedAt
-        };
+                FirstName = patient.FirstName,
+                LastName = patient.LastName,
+                DateOfBirth = patient.DateOfBirth,
+                Phone = patient.Phone,
+                Email = patient.Email,
+                Address = patient.Address,
+                CreatedAt = patient.CreatedAt
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating patient: {Id}", id);
+            return null;
+        }
     }
-    catch (Exception ex)
-    {
-        _logger.LogError(ex, "Error updating patient: {Id}", id);
-        return null;
-    }
-}
 
     public async Task<bool> DeletePatientAsync(int id)
     {
@@ -286,11 +288,11 @@ public async Task<PatientResponse?> UpdatePatientAsync(int id, UpdatePatientRequ
             _context.Patients.Remove(patient);
             await _context.SaveChangesAsync();
 
-            // Invalidate cache
+            // 👇 INVALIDATE CACHE
             await _cache.RemoveAsync($"patient:{id}");
             await _cache.RemoveAsync("patients:all");
 
-            _logger.LogInformation("Patient deleted: {PatientId}", id);
+            _logger.LogInformation("Patient deleted and cache invalidated: {PatientId}", id);
             return true;
         }
         catch (Exception ex)
@@ -300,4 +302,32 @@ public async Task<PatientResponse?> UpdatePatientAsync(int id, UpdatePatientRequ
         }
     }
 
+    public async Task<PatientResponse?> GetPatientByUserIdAsync(int userId)
+    {
+        try
+        {
+            var patient = await _context.Patients
+                .FirstOrDefaultAsync(p => p.Id == userId);
+            
+            if (patient == null)
+                return null;
+
+            return new PatientResponse
+            {
+                Id = patient.Id,
+                FirstName = patient.FirstName,
+                LastName = patient.LastName,
+                DateOfBirth = patient.DateOfBirth,
+                Phone = patient.Phone,
+                Email = patient.Email,
+                Address = patient.Address,
+                CreatedAt = patient.CreatedAt
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting patient by user id: {UserId}", userId);
+            return null;
+        }
+    }
 }
