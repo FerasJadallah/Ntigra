@@ -20,12 +20,10 @@ public class AppDbContext : DbContext
     {
         base.OnModelCreating(modelBuilder);
 
-        modelBuilder.Entity<User>()
-            .HasDiscriminator<string>("Discriminator")
-            .HasValue<User>("User")
-            .HasValue<Patient>("Patient")
-            .HasValue<Receptionist>("Receptionist")
-            .HasValue<Admin>("Admin"); 
+        modelBuilder.Entity<User>().ToTable("Users");
+        modelBuilder.Entity<Patient>().ToTable("Patients");
+        modelBuilder.Entity<Receptionist>().ToTable("Receptionists");
+        modelBuilder.Entity<Admin>().ToTable("Admins");
 
         modelBuilder.Entity<AuditLog>()
             .HasOne(a => a.User)
