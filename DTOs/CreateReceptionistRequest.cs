@@ -12,6 +12,10 @@ public class CreateReceptionistRequest
     [MinLength(6)]
     public string Password { get; set; } = string.Empty;
     
+    [Required(ErrorMessage = "Username is required")]
+    [MinLength(3)]
+    public string Username { get; set; } = string.Empty;
+    
     [Required]
     public string EmployeeId { get; set; } = string.Empty;
     

@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Ntigra.Data;
+using Ntigra.Infrastructure;
 using Ntigra.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
@@ -69,6 +70,11 @@ builder.Services.AddSwaggerGen(c =>
     builder.Services.AddSingleton<ICacheService, RedisCacheService>();
 
 var app = builder.Build();
+
+if (await AdminBootstrapper.TryHandleAsync(args, app))
+{
+    return;
+}
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())

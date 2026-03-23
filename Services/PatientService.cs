@@ -41,6 +41,15 @@ public class PatientService : IPatientService
                 return null;
             }
 
+            var existingUsername = await _context.Users
+                .FirstOrDefaultAsync(u => u.Username == request.Username);
+
+            if (existingUsername != null)
+            {
+                _logger.LogWarning("Username already exists: {Username}", request.Username);
+                return null;
+            }
+
             // Hash password
             string passwordHash = BCrypt.Net.BCrypt.HashPassword(request.Password);
 
@@ -48,6 +57,7 @@ public class PatientService : IPatientService
             var patient = new Patient
             {
                 Email = request.Email,
+                Username = request.Username,
                 PasswordHash = passwordHash,
                 Role = "Patient",
                 FirstName = request.FirstName,

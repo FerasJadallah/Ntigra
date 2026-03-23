@@ -20,7 +20,11 @@ public class AppDbContext : DbContext
     {
         base.OnModelCreating(modelBuilder);
 
-        modelBuilder.Entity<User>().ToTable("Users");
+        modelBuilder.Entity<User>(entity =>
+        {
+            entity.ToTable("Users");
+            entity.HasIndex(u => u.Username).IsUnique();
+        });
         modelBuilder.Entity<Patient>().ToTable("Patients");
         modelBuilder.Entity<Receptionist>().ToTable("Receptionists");
         modelBuilder.Entity<Admin>().ToTable("Admins");

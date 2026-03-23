@@ -37,6 +37,16 @@ public class AuthService : IAuthService
                 return null;
             }
 
+            // Check if username exists
+            var existingUsername = await _context.Users
+                .FirstOrDefaultAsync(u => u.Username == request.Username);
+
+            if (existingUsername != null)
+            {
+                _logger.LogWarning("Registration failed - username already exists: {Username}", request.Username);
+                return null;
+            }
+
             // Hash password
             string passwordHash = BCrypt.Net.BCrypt.HashPassword(request.Password);
 
@@ -44,6 +54,7 @@ public class AuthService : IAuthService
             var user = new User
             {
                 Email = request.Email,
+                Username = request.Username,
                 PasswordHash = passwordHash,
                 Role = "Patient",
                 CreatedAt = DateTime.UtcNow
@@ -58,6 +69,7 @@ public class AuthService : IAuthService
             {
                 Message = "User registered successfully",
                 UserId = user.Id,
+                Username = user.Username,
                 Email = user.Email,
                 Role = user.Role
             };
@@ -106,6 +118,7 @@ public class AuthService : IAuthService
             return new LoginResponse
             {
                 Token = token,
+                Username = user.Username,
                 Email = user.Email,
                 Role = user.Role,
                 UserId = user.Id,
@@ -130,6 +143,7 @@ public class AuthService : IAuthService
             {
                 new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
                 new Claim(ClaimTypes.Email, user.Email),
+                new Claim(ClaimTypes.Name, user.Username),
                 new Claim(ClaimTypes.Role, user.Role)
             }),
             Expires = DateTime.UtcNow.AddMinutes(Convert.ToDouble(_configuration["Jwt:ExpirationInMinutes"] ?? "60")),

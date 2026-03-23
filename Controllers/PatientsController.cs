@@ -29,7 +29,7 @@ public class PatientsController : ControllerBase
         var result = await _patientService.CreatePatientAsync(request);
 
         if (result == null)
-            return BadRequest(new { message = "Failed to create patient. Email may already exist." });
+            return BadRequest(new { message = "Failed to create patient. Email or username may already exist." });
 
         return CreatedAtAction(nameof(GetPatientById), new { id = result.Id }, result);
     }

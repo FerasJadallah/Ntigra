@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using Ntigra.Data;
 using Ntigra.DTOs;
@@ -51,11 +52,13 @@ public class ReceptionistService : IReceptionistService
 
             // Hash password
             string passwordHash = BCrypt.Net.BCrypt.HashPassword(request.Password);
+            var generatedUsername = await GenerateUniqueUsernameAsync(request.Email);
 
             // Create receptionist
             var receptionist = new Receptionist
             {
                 Email = request.Email,
+                Username = generatedUsername,
                 PasswordHash = passwordHash,
                 Role = "Receptionist",
                 EmployeeId = request.EmployeeId,
@@ -265,5 +268,41 @@ public class ReceptionistService : IReceptionistService
             _logger.LogError(ex, "Error deleting receptionist: {Id}", id);
             return false;
         }
+    }
+
+    private async Task<string> GenerateUniqueUsernameAsync(string email)
+    {
+        var localPart = email.Split('@', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? "user";
+        var normalizedBase = Regex.Replace(localPart, "[^a-zA-Z0-9_]", "_")
+            .Trim('_')
+            .ToLowerInvariant();
+
+        if (string.IsNullOrWhiteSpace(normalizedBase))
+        {
+            normalizedBase = "user";
+        }
+
+        if (normalizedBase.Length < 3)
+            normalizedBase = normalizedBase.PadRight(3, '0');
+
+        if (normalizedBase.Length > 30)
+            normalizedBase = normalizedBase[..30];
+
+        var username = normalizedBase;
+        var suffix = 1;
+
+        while (await _context.Users.AnyAsync(u => u.Username == username))
+        {
+            var suffixText = suffix.ToString();
+            var baseAllowedLength = Math.Max(1, 30 - suffixText.Length - 1);
+            var basePart = normalizedBase.Length <= baseAllowedLength
+                ? normalizedBase
+                : normalizedBase[..baseAllowedLength];
+
+            username = $"{basePart}_{suffixText}";
+            suffix++;
+        }
+
+        return username;
     }
 }
