@@ -189,7 +189,6 @@ public class ReceptionistService : EmployeeServiceBase, IReceptionistService
                 receptionist.DeskNumber
             };
 
-            receptionist.EmployeeId = request.EmployeeId;
             receptionist.FirstName = request.FirstName;
             receptionist.LastName = request.LastName;
             receptionist.Department = request.Department;
@@ -205,7 +204,7 @@ public class ReceptionistService : EmployeeServiceBase, IReceptionistService
                     Before = before,
                     After = new
                     {
-                        request.EmployeeId,
+                        receptionist.EmployeeId,
                         request.FirstName,
                         request.LastName,
                         request.Department,
