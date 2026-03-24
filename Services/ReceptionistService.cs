@@ -1,4 +1,3 @@
-using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using Ntigra.Data;
 using Ntigra.DTOs;
@@ -7,9 +6,8 @@ using System.Text.Json;
 
 namespace Ntigra.Services;
 
-public class ReceptionistService : IReceptionistService
+public class ReceptionistService : EmployeeServiceBase, IReceptionistService
 {
-    private readonly AppDbContext _context;
     private readonly IAuditService _auditService;
     private readonly ILogger<ReceptionistService> _logger;
 
@@ -17,8 +15,8 @@ public class ReceptionistService : IReceptionistService
         AppDbContext context,
         IAuditService auditService,
         ILogger<ReceptionistService> logger)
+        : base(context)
     {
-        _context = context;
         _auditService = auditService;
         _logger = logger;
     }
@@ -27,50 +25,43 @@ public class ReceptionistService : IReceptionistService
     {
         try
         {
-            await using var transaction = await _context.Database.BeginTransactionAsync();
+            await using var transaction = await Context.Database.BeginTransactionAsync();
 
             // Check if email exists
-            var existingUser = await _context.Users
-                .FirstOrDefaultAsync(u => u.Email == request.Email);
-            
-            if (existingUser != null)
+            if (await EmailExistsAsync(request.Email))
             {
                 _logger.LogWarning("Email already exists: {Email}", request.Email);
                 return null;
             }
 
-            // Check if employee ID exists
-            var existingEmployee = await _context.Users
-                .OfType<Receptionist>()
-                .FirstOrDefaultAsync(r => r.EmployeeId == request.EmployeeId);
-            
-            if (existingEmployee != null)
+            if (await UsernameExistsAsync(request.Username))
             {
-                _logger.LogWarning("Employee ID already exists: {EmployeeId}", request.EmployeeId);
+                _logger.LogWarning("Username already exists: {Username}", request.Username);
                 return null;
             }
 
             // Hash password
-            string passwordHash = BCrypt.Net.BCrypt.HashPassword(request.Password);
-            var generatedUsername = await GenerateUniqueUsernameAsync(request.Email);
+            var passwordHash = HashPassword(request.Password);
+            var employeeId = await GenerateEmployeeIdAsync();
 
             // Create receptionist
             var receptionist = new Receptionist
             {
                 Email = request.Email,
-                Username = generatedUsername,
+                Username = request.Username,
                 PasswordHash = passwordHash,
                 Role = "Receptionist",
-                EmployeeId = request.EmployeeId,
+                EmployeeId = employeeId,
                 FirstName = request.FirstName,
                 LastName = request.LastName,
                 Department = request.Department,
                 HireDate = request.HireDate,
+                DeskNumber = request.DeskNumber,
                 CreatedAt = DateTime.UtcNow
             };
 
-            _context.Receptionists.Add(receptionist);
-            await _context.SaveChangesAsync();
+            Context.Receptionists.Add(receptionist);
+            await Context.SaveChangesAsync();
 
             _auditService.AddAuditLog(
                 action: "CREATE",
@@ -82,9 +73,11 @@ public class ReceptionistService : IReceptionistService
                     receptionist.Email,
                     receptionist.EmployeeId,
                     receptionist.FirstName,
-                    receptionist.LastName
+                    receptionist.LastName,
+                    receptionist.DeskNumber,
+                    receptionist.Username
                 }));
-            await _context.SaveChangesAsync();
+            await Context.SaveChangesAsync();
             await transaction.CommitAsync();
 
             _logger.LogInformation("Receptionist created: {Email}, Id: {Id}", receptionist.Email, receptionist.Id);
@@ -98,6 +91,7 @@ public class ReceptionistService : IReceptionistService
                 LastName = receptionist.LastName,
                 Department = receptionist.Department,
                 HireDate = receptionist.HireDate,
+                DeskNumber = receptionist.DeskNumber,
                 CreatedAt = receptionist.CreatedAt
             };
         }
@@ -112,7 +106,7 @@ public class ReceptionistService : IReceptionistService
     {
         try
         {
-            var receptionist = await _context.Receptionists.FindAsync(id);
+            var receptionist = await Context.Receptionists.FindAsync(id);
             if (receptionist == null)
                 return null;
 
@@ -120,7 +114,7 @@ public class ReceptionistService : IReceptionistService
                 action: "READ",
                 entityType: "Receptionist",
                 entityId: receptionist.Id);
-            await _context.SaveChangesAsync();
+            await Context.SaveChangesAsync();
 
             return new ReceptionistResponse
             {
@@ -131,6 +125,7 @@ public class ReceptionistService : IReceptionistService
                 LastName = receptionist.LastName,
                 Department = receptionist.Department,
                 HireDate = receptionist.HireDate,
+                DeskNumber = receptionist.DeskNumber,
                 CreatedAt = receptionist.CreatedAt
             };
         }
@@ -145,7 +140,7 @@ public class ReceptionistService : IReceptionistService
     {
         try
         {
-            var receptionists = await _context.Receptionists
+            var receptionists = await Context.Receptionists
                 .Select(r => new ReceptionistResponse
                 {
                     Id = r.Id,
@@ -155,6 +150,7 @@ public class ReceptionistService : IReceptionistService
                     LastName = r.LastName,
                     Department = r.Department,
                     HireDate = r.HireDate,
+                    DeskNumber = r.DeskNumber,
                     CreatedAt = r.CreatedAt
                 })
                 .ToListAsync();
@@ -164,7 +160,7 @@ public class ReceptionistService : IReceptionistService
                 entityType: "Receptionist",
                 entityId: 0,
                 details: JsonSerializer.Serialize(new { Count = receptionists.Count }));
-            await _context.SaveChangesAsync();
+            await Context.SaveChangesAsync();
 
             return receptionists;
         }
@@ -179,7 +175,7 @@ public class ReceptionistService : IReceptionistService
     {
         try
         {
-            var receptionist = await _context.Receptionists.FindAsync(id);
+            var receptionist = await Context.Receptionists.FindAsync(id);
             if (receptionist == null)
                 return null;
 
@@ -189,7 +185,8 @@ public class ReceptionistService : IReceptionistService
                 receptionist.FirstName,
                 receptionist.LastName,
                 receptionist.Department,
-                receptionist.HireDate
+                receptionist.HireDate,
+                receptionist.DeskNumber
             };
 
             receptionist.EmployeeId = request.EmployeeId;
@@ -197,6 +194,7 @@ public class ReceptionistService : IReceptionistService
             receptionist.LastName = request.LastName;
             receptionist.Department = request.Department;
             receptionist.HireDate = request.HireDate;
+            receptionist.DeskNumber = request.DeskNumber;
 
             _auditService.AddAuditLog(
                 action: "UPDATE",
@@ -211,10 +209,11 @@ public class ReceptionistService : IReceptionistService
                         request.FirstName,
                         request.LastName,
                         request.Department,
-                        request.HireDate
+                        request.HireDate,
+                        request.DeskNumber
                     }
                 }));
-            await _context.SaveChangesAsync();
+            await Context.SaveChangesAsync();
 
             _logger.LogInformation("Receptionist updated: {Id}", id);
 
@@ -227,6 +226,7 @@ public class ReceptionistService : IReceptionistService
                 LastName = receptionist.LastName,
                 Department = receptionist.Department,
                 HireDate = receptionist.HireDate,
+                DeskNumber = receptionist.DeskNumber,
                 CreatedAt = receptionist.CreatedAt
             };
         }
@@ -241,7 +241,7 @@ public class ReceptionistService : IReceptionistService
     {
         try
         {
-            var receptionist = await _context.Receptionists.FindAsync(id);
+            var receptionist = await Context.Receptionists.FindAsync(id);
             if (receptionist == null)
                 return false;
 
@@ -255,10 +255,11 @@ public class ReceptionistService : IReceptionistService
                     receptionist.Email,
                     receptionist.EmployeeId,
                     receptionist.FirstName,
-                    receptionist.LastName
+                    receptionist.LastName,
+                    receptionist.DeskNumber
                 }));
-            _context.Receptionists.Remove(receptionist);
-            await _context.SaveChangesAsync();
+            Context.Receptionists.Remove(receptionist);
+            await Context.SaveChangesAsync();
 
             _logger.LogInformation("Receptionist deleted: {Id}", id);
             return true;
@@ -270,39 +271,4 @@ public class ReceptionistService : IReceptionistService
         }
     }
 
-    private async Task<string> GenerateUniqueUsernameAsync(string email)
-    {
-        var localPart = email.Split('@', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? "user";
-        var normalizedBase = Regex.Replace(localPart, "[^a-zA-Z0-9_]", "_")
-            .Trim('_')
-            .ToLowerInvariant();
-
-        if (string.IsNullOrWhiteSpace(normalizedBase))
-        {
-            normalizedBase = "user";
-        }
-
-        if (normalizedBase.Length < 3)
-            normalizedBase = normalizedBase.PadRight(3, '0');
-
-        if (normalizedBase.Length > 30)
-            normalizedBase = normalizedBase[..30];
-
-        var username = normalizedBase;
-        var suffix = 1;
-
-        while (await _context.Users.AnyAsync(u => u.Username == username))
-        {
-            var suffixText = suffix.ToString();
-            var baseAllowedLength = Math.Max(1, 30 - suffixText.Length - 1);
-            var basePart = normalizedBase.Length <= baseAllowedLength
-                ? normalizedBase
-                : normalizedBase[..baseAllowedLength];
-
-            username = $"{basePart}_{suffixText}";
-            suffix++;
-        }
-
-        return username;
-    }
 }

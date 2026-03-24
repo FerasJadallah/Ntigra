@@ -30,7 +30,7 @@ public class ReceptionistsController : ControllerBase
         var result = await _receptionistService.CreateReceptionistAsync(request);
 
         if (result == null)
-            return BadRequest(new { message = "Failed to create receptionist. Email or Employee ID may already exist." });
+            return BadRequest(new { message = "Failed to create receptionist. Email or username may already exist." });
 
         return CreatedAtAction(nameof(GetReceptionistById), new { id = result.Id }, result);
     }
