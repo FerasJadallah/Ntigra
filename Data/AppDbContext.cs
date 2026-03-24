@@ -9,8 +9,9 @@ public class AppDbContext : DbContext
         : base(options)
     {
     }
-    
+
     public DbSet<User> Users { get; set; }
+    public DbSet<Employee> Employees { get; set; }
     public DbSet<Patient> Patients { get; set; }
     public DbSet<Receptionist> Receptionists { get; set; }
     public DbSet<Admin> Admins { get; set; }
@@ -25,6 +26,7 @@ public class AppDbContext : DbContext
             entity.ToTable("Users");
             entity.HasIndex(u => u.Username).IsUnique();
         });
+        modelBuilder.Entity<Employee>().ToTable("Employees");
         modelBuilder.Entity<Patient>().ToTable("Patients");
         modelBuilder.Entity<Receptionist>().ToTable("Receptionists");
         modelBuilder.Entity<Admin>().ToTable("Admins");
@@ -34,5 +36,6 @@ public class AppDbContext : DbContext
             .WithMany()
             .HasForeignKey(a => a.UserId)
             .OnDelete(DeleteBehavior.Restrict);
-}
+
     }
+}
