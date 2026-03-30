@@ -6,9 +6,8 @@ using Ntigra.Models;
 
 namespace Ntigra.Services;
 
-public class PatientService : IPatientService
+public class PatientService : ServiceBase, IPatientService
 {
-    private readonly AppDbContext _context;
     private readonly IAuditService _auditService;
     private readonly ICacheService _cache; 
     private readonly ILogger<PatientService> _logger;
@@ -18,8 +17,8 @@ public class PatientService : IPatientService
         IAuditService auditService,
         ICacheService cache,
         ILogger<PatientService> logger)
+        : base(context)
     {
-        _context = context;
         _auditService = auditService;
         _cache = cache;
         _logger = logger;
@@ -29,29 +28,23 @@ public class PatientService : IPatientService
     {
         try
         {
-            await using var transaction = await _context.Database.BeginTransactionAsync();
+            await using var transaction = await Context.Database.BeginTransactionAsync();
 
             // Check if email exists
-            var existingUser = await _context.Users
-                .FirstOrDefaultAsync(u => u.Email == request.Email);
-            
-            if (existingUser != null)
+            if (await EmailExistsAsync(request.Email))
             {
                 _logger.LogWarning("Email already exists: {Email}", request.Email);
                 return null;
             }
 
-            var existingUsername = await _context.Users
-                .FirstOrDefaultAsync(u => u.Username == request.Username);
-
-            if (existingUsername != null)
+            if (await UsernameExistsAsync(request.Username))
             {
                 _logger.LogWarning("Username already exists: {Username}", request.Username);
                 return null;
             }
 
             // Hash password
-            string passwordHash = BCrypt.Net.BCrypt.HashPassword(request.Password);
+            var passwordHash = HashPassword(request.Password);
 
             // Create patient (inherits from User)
             var patient = new Patient
@@ -68,8 +61,8 @@ public class PatientService : IPatientService
                 CreatedAt = DateTime.UtcNow
             };
 
-            _context.Patients.Add(patient);
-            await _context.SaveChangesAsync();
+            Context.Patients.Add(patient);
+            await Context.SaveChangesAsync();
 
             _auditService.AddAuditLog(
                 action: "CREATE",
@@ -82,7 +75,7 @@ public class PatientService : IPatientService
                     patient.FirstName,
                     patient.LastName
                 }));
-            await _context.SaveChangesAsync();
+            await Context.SaveChangesAsync();
             await transaction.CommitAsync();
 
             // Invalidate cache for all patients since list changed
@@ -126,7 +119,7 @@ public class PatientService : IPatientService
             _logger.LogInformation("❌ CACHE MISS for patient {PatientId}, fetching from database", id);
             
             // Cache miss - get from database
-            var patient = await _context.Patients.FindAsync(id);
+            var patient = await Context.Patients.FindAsync(id);
             if (patient == null)
                 return null;
 
@@ -146,7 +139,7 @@ public class PatientService : IPatientService
             await _cache.SetAsync(cacheKey, response, TimeSpan.FromMinutes(5));
             
             _auditService.AddAuditLog("READ", "Patient", patient.Id);
-            await _context.SaveChangesAsync();
+            await Context.SaveChangesAsync();
 
             return response;
         }
@@ -173,7 +166,7 @@ public class PatientService : IPatientService
 
             _logger.LogInformation("❌ CACHE MISS for all patients, fetching from database");
             
-            var patients = await _context.Patients
+            var patients = await Context.Patients
                 .Select(p => new PatientResponse
                 {
                     Id = p.Id,
@@ -195,7 +188,7 @@ public class PatientService : IPatientService
                 entityType: "Patient",
                 entityId: 0,
                 details: JsonSerializer.Serialize(new { Count = patients.Count }));
-            await _context.SaveChangesAsync();
+            await Context.SaveChangesAsync();
 
             return patients;
         }
@@ -210,7 +203,7 @@ public class PatientService : IPatientService
     {
         try
         {
-            var patient = await _context.Patients.FindAsync(id);
+            var patient = await Context.Patients.FindAsync(id);
             if (patient == null)
                 return null;
 
@@ -249,7 +242,7 @@ public class PatientService : IPatientService
                         patient.Address
                     }
                 }));
-            await _context.SaveChangesAsync();
+            await Context.SaveChangesAsync();
 
             // 👇 INVALIDATE CACHE - remove old data
             await _cache.RemoveAsync($"patient:{id}");
@@ -280,7 +273,7 @@ public class PatientService : IPatientService
     {
         try
         {
-            var patient = await _context.Patients.FindAsync(id);
+            var patient = await Context.Patients.FindAsync(id);
             if (patient == null)
                 return false;
 
@@ -295,8 +288,8 @@ public class PatientService : IPatientService
                     patient.FirstName,
                     patient.LastName
                 }));
-            _context.Patients.Remove(patient);
-            await _context.SaveChangesAsync();
+            Context.Patients.Remove(patient);
+            await Context.SaveChangesAsync();
 
             // 👇 INVALIDATE CACHE
             await _cache.RemoveAsync($"patient:{id}");
@@ -316,7 +309,7 @@ public class PatientService : IPatientService
     {
         try
         {
-            var patient = await _context.Patients
+            var patient = await Context.Patients
                 .FirstOrDefaultAsync(p => p.Id == userId);
             
             if (patient == null)

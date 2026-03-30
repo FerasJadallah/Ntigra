@@ -3,33 +3,9 @@ using Ntigra.Data;
 
 namespace Ntigra.Services;
 
-public abstract class EmployeeServiceBase
+public abstract class EmployeeServiceBase : ServiceBase
 {
-    protected readonly AppDbContext Context;
-
-    protected EmployeeServiceBase(AppDbContext context)
-    {
-        Context = context;
-    }
-
-    protected static string HashPassword(string password)
-    {
-        return BCrypt.Net.BCrypt.HashPassword(password);
-    }
-
-    protected async Task<bool> EmailExistsAsync(string email, int? excludeUserId = null)
-    {
-        return await Context.Users.AnyAsync(u =>
-            u.Email == email &&
-            (!excludeUserId.HasValue || u.Id != excludeUserId.Value));
-    }
-
-    protected async Task<bool> UsernameExistsAsync(string username, int? excludeUserId = null)
-    {
-        return await Context.Users.AnyAsync(u =>
-            u.Username == username &&
-            (!excludeUserId.HasValue || u.Id != excludeUserId.Value));
-    }
+    protected EmployeeServiceBase(AppDbContext context) : base(context) { }
 
     protected async Task<bool> EmployeeIdExistsAsync(string employeeId, int? excludeEmployeeId = null)
     {

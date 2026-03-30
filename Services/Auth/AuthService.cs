@@ -9,15 +9,14 @@ using Ntigra.Models;
 
 namespace Ntigra.Services;
 
-public class AuthService : IAuthService
+public class AuthService : ServiceBase, IAuthService
 {
-    private readonly AppDbContext _context;
     private readonly ILogger<AuthService> _logger;
     private readonly IConfiguration _configuration;
 
     public AuthService(AppDbContext context, ILogger<AuthService> logger, IConfiguration configuration)
+        : base(context)
     {
-        _context = context;
         _logger = logger;
         _configuration = configuration;
     }
@@ -28,27 +27,21 @@ public class AuthService : IAuthService
         try
         {
             // Check if email exists
-            var existingUser = await _context.Users
-                .FirstOrDefaultAsync(u => u.Email == request.Email);
-
-            if (existingUser != null)
+            if (await EmailExistsAsync(request.Email))
             {
                 _logger.LogWarning("Registration failed - email already exists: {Email}", request.Email);
                 return null;
             }
 
             // Check if username exists
-            var existingUsername = await _context.Users
-                .FirstOrDefaultAsync(u => u.Username == request.Username);
-
-            if (existingUsername != null)
+            if (await UsernameExistsAsync(request.Username))
             {
                 _logger.LogWarning("Registration failed - username already exists: {Username}", request.Username);
                 return null;
             }
 
             // Hash password
-            string passwordHash = BCrypt.Net.BCrypt.HashPassword(request.Password);
+            var passwordHash = HashPassword(request.Password);
 
             // Create user (default role = "Patient")
             var user = new User
@@ -60,8 +53,8 @@ public class AuthService : IAuthService
                 CreatedAt = DateTime.UtcNow
             };
 
-            _context.Users.Add(user);
-            await _context.SaveChangesAsync();
+            Context.Users.Add(user);
+            await Context.SaveChangesAsync();
 
             _logger.LogInformation("User registered successfully: {Email}, Id: {UserId}", user.Email, user.Id);
 
@@ -92,7 +85,7 @@ public class AuthService : IAuthService
         try
         {
             // Find user by email
-            var user = await _context.Users
+            var user = await Context.Users
                 .FirstOrDefaultAsync(u => u.Email == request.Email);
 
             if (user == null)
