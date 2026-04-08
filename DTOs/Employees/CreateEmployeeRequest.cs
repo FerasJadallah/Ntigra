@@ -25,4 +25,6 @@ public class CreateEmployeeRequest
     public string? Department { get; set; }
 
     public DateTime? HireDate { get; set; }
+
+    public decimal? Salary { get; set; }
 }

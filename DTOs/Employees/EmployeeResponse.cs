@@ -9,5 +9,6 @@ public class EmployeeResponse
     public string LastName { get; set; } = string.Empty;
     public string? Department { get; set; }
     public DateTime? HireDate { get; set; }
+    public decimal? Salary { get; set; }
     public DateTime CreatedAt { get; set; }
 }

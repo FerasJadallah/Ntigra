@@ -26,7 +26,11 @@ public class AppDbContext : DbContext
             entity.ToTable("Users");
             entity.HasIndex(u => u.Username).IsUnique();
         });
-        modelBuilder.Entity<Employee>().ToTable("Employees");
+        modelBuilder.Entity<Employee>(entity =>
+        {
+            entity.ToTable("Employees");
+            entity.Property(e => e.Salary).HasPrecision(18, 2);
+        });
         modelBuilder.Entity<Patient>().ToTable("Patients");
         modelBuilder.Entity<Receptionist>().ToTable("Receptionists");
         modelBuilder.Entity<Admin>().ToTable("Admins");

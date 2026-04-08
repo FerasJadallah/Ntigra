@@ -56,6 +56,7 @@ public class ReceptionistService : EmployeeServiceBase, IReceptionistService
                 LastName = request.LastName,
                 Department = request.Department,
                 HireDate = request.HireDate,
+                Salary = request.Salary,
                 DeskNumber = request.DeskNumber,
                 CreatedAt = DateTime.UtcNow
             };
@@ -91,6 +92,7 @@ public class ReceptionistService : EmployeeServiceBase, IReceptionistService
                 LastName = receptionist.LastName,
                 Department = receptionist.Department,
                 HireDate = receptionist.HireDate,
+                Salary = receptionist.Salary,
                 DeskNumber = receptionist.DeskNumber,
                 CreatedAt = receptionist.CreatedAt
             };
@@ -125,6 +127,7 @@ public class ReceptionistService : EmployeeServiceBase, IReceptionistService
                 LastName = receptionist.LastName,
                 Department = receptionist.Department,
                 HireDate = receptionist.HireDate,
+                Salary = receptionist.Salary,
                 DeskNumber = receptionist.DeskNumber,
                 CreatedAt = receptionist.CreatedAt
             };
@@ -150,6 +153,7 @@ public class ReceptionistService : EmployeeServiceBase, IReceptionistService
                     LastName = r.LastName,
                     Department = r.Department,
                     HireDate = r.HireDate,
+                    Salary = r.Salary,
                     DeskNumber = r.DeskNumber,
                     CreatedAt = r.CreatedAt
                 })
@@ -186,6 +190,7 @@ public class ReceptionistService : EmployeeServiceBase, IReceptionistService
                 receptionist.LastName,
                 receptionist.Department,
                 receptionist.HireDate,
+                receptionist.Salary,
                 receptionist.DeskNumber
             };
 
@@ -193,6 +198,7 @@ public class ReceptionistService : EmployeeServiceBase, IReceptionistService
             receptionist.LastName = request.LastName;
             receptionist.Department = request.Department;
             receptionist.HireDate = request.HireDate;
+            receptionist.Salary = request.Salary;
             receptionist.DeskNumber = request.DeskNumber;
 
             _auditService.AddAuditLog(
@@ -209,6 +215,7 @@ public class ReceptionistService : EmployeeServiceBase, IReceptionistService
                         request.LastName,
                         request.Department,
                         request.HireDate,
+                        request.Salary,
                         request.DeskNumber
                     }
                 }));
@@ -225,6 +232,7 @@ public class ReceptionistService : EmployeeServiceBase, IReceptionistService
                 LastName = receptionist.LastName,
                 Department = receptionist.Department,
                 HireDate = receptionist.HireDate,
+                Salary = receptionist.Salary,
                 DeskNumber = receptionist.DeskNumber,
                 CreatedAt = receptionist.CreatedAt
             };
